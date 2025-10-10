@@ -1,0 +1,191 @@
+:root {
+  --card-width: 90px;
+  --card-height: 126px;
+  --tableau-gap: 28px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #f0f4f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at top, #2d4d73, #14223b 70%);
+}
+
+header,
+footer {
+  padding: 1rem 2rem;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+header h1 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+#status {
+  min-width: 220px;
+}
+
+main {
+  flex: 1 1 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.top-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.foundations {
+  display: flex;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+.tableau {
+  display: grid;
+  grid-template-columns: repeat(7, var(--card-width));
+  gap: 1.5rem;
+}
+
+.pile {
+  position: relative;
+  width: var(--card-width);
+  height: var(--card-height);
+  border-radius: 10px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 6px;
+}
+
+.tableau-pile {
+  height: calc(var(--card-height) + 11 * var(--tableau-gap));
+}
+
+.card {
+  position: absolute;
+  width: calc(var(--card-width) - 12px);
+  height: calc(var(--card-height) - 12px);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff, #f7f7f7);
+  color: #222;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.card.face-down {
+  background: linear-gradient(135deg, #b71c1c, #6a1b9a);
+  color: transparent;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.card.dragging {
+  cursor: grabbing;
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+}
+
+.card .rank {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.card .suit {
+  font-size: 1.2rem;
+  margin-top: 0.2rem;
+}
+
+.card.red {
+  color: #c62828;
+}
+
+.placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: #f7c948;
+  color: #1b1b1b;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 900px) {
+  main {
+    padding: 1rem;
+  }
+
+  .tableau {
+    gap: 1rem;
+  }
+
+  .top-row {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .foundations {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --card-width: 70px;
+    --card-height: 98px;
+    --tableau-gap: 22px;
+  }
+
+  header,
+  footer {
+    justify-content: center;
+    text-align: center;
+  }
+
+  #status {
+    min-width: 0;
+  }
+}
