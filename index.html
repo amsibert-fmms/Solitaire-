@@ -6,12 +6,28 @@
     <title>Klondike Solitaire</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body class="card-theme-classic background-classic">
     <header>
       <h1>Klondike Solitaire</h1>
       <div class="controls">
         <button id="new-game" type="button">New Game</button>
         <span id="status" role="status" aria-live="polite"></span>
+        <label class="design-select" for="card-design">
+          <span>Card design</span>
+          <select id="card-design" name="card-design">
+            <option value="classic" selected>Classic</option>
+            <option value="vintage">Vintage</option>
+            <option value="midnight">Midnight</option>
+          </select>
+        </label>
+        <label class="design-select" for="background-design">
+          <span>Background</span>
+          <select id="background-design" name="background-design">
+            <option value="classic" selected>Celestial</option>
+            <option value="forest">Forest Felt</option>
+            <option value="deepsea">Deep Sea</option>
+          </select>
+        </label>
       </div>
     </header>
     <main>

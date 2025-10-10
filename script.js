@@ -50,6 +50,15 @@
 
   const statusEl = document.getElementById("status");
   const newGameBtn = document.getElementById("new-game");
+  const cardDesignSelect = document.getElementById("card-design");
+  const backgroundSelect = document.getElementById("background-design");
+
+  const cardThemeClasses = ["card-theme-classic", "card-theme-vintage", "card-theme-midnight"];
+  const backgroundThemeClasses = [
+    "background-classic",
+    "background-forest",
+    "background-deepsea"
+  ];
 
   const state = {
     stock: [],
@@ -90,9 +99,7 @@
   function createCardElement(card) {
     const el = document.createElement("div");
     el.className = "card face-down";
-    if (card.color === "red") {
-      el.classList.add("red");
-    }
+    el.classList.add(card.color === "red" ? "red" : "black");
     el.innerHTML = `
       <div class="rank">${card.rank.label}</div>
       <div class="suit">${card.suit.symbol}</div>
@@ -151,6 +158,16 @@
     state.moveCount = 0;
     render();
     updateStatus("Good luck!");
+  }
+
+  function applyCardTheme(theme) {
+    document.body.classList.remove(...cardThemeClasses);
+    document.body.classList.add(`card-theme-${theme}`);
+  }
+
+  function applyBackgroundTheme(theme) {
+    document.body.classList.remove(...backgroundThemeClasses);
+    document.body.classList.add(`background-${theme}`);
   }
 
   function resetState() {
@@ -503,9 +520,25 @@
   function setupEventListeners() {
     piles.stock.addEventListener("click", handleStockClick);
     newGameBtn.addEventListener("click", startNewGame);
+    if (cardDesignSelect) {
+      cardDesignSelect.addEventListener("change", (event) => {
+        applyCardTheme(event.target.value);
+      });
+    }
+    if (backgroundSelect) {
+      backgroundSelect.addEventListener("change", (event) => {
+        applyBackgroundTheme(event.target.value);
+      });
+    }
   }
 
   attachPlaceholders();
   setupEventListeners();
+  if (cardDesignSelect) {
+    applyCardTheme(cardDesignSelect.value);
+  }
+  if (backgroundSelect) {
+    applyBackgroundTheme(backgroundSelect.value);
+  }
   startNewGame();
 })();
