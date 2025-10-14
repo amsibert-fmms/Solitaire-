@@ -52,6 +52,12 @@
   const newGameBtn = document.getElementById("new-game");
   const cardDesignSelect = document.getElementById("card-design");
   const backgroundSelect = document.getElementById("background-design");
+  const infoElements = {
+    stock: document.getElementById("stock-count"),
+    waste: document.getElementById("waste-count"),
+    foundations: document.getElementById("foundation-count"),
+    moves: document.getElementById("move-count")
+  };
 
   const cardThemeClasses = ["card-theme-classic", "card-theme-vintage", "card-theme-midnight"];
   const backgroundThemeClasses = [
@@ -188,6 +194,7 @@
     renderWaste();
     renderFoundations();
     renderTableau();
+    updateInfoPanel();
   }
 
   function clearPileElement(pileEl) {
@@ -515,6 +522,18 @@
 
   function updateStatus(message) {
     statusEl.textContent = message;
+  }
+
+  function updateInfoPanel() {
+    if (!infoElements.stock) return;
+    infoElements.stock.textContent = state.stock.length;
+    infoElements.waste.textContent = state.waste.length;
+    const foundationCount = state.foundations.reduce(
+      (total, foundation) => total + foundation.length,
+      0
+    );
+    infoElements.foundations.textContent = `${foundationCount}/52`;
+    infoElements.moves.textContent = state.moveCount;
   }
 
   function setupEventListeners() {
