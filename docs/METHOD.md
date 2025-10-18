@@ -113,19 +113,17 @@ Supermove and foundation-takeback options relax, but never violate, these core i
 
 6. Output Schema (excerpt)
 
-FieldTypeDescription
-
-seeduint32Shuffle seed.
-profilestrRule profile name.
-drawintDraw size (1 or 3).
-peek_xrayboolWhether X-ray information was enabled.
-solvedboolTrue if a legal win sequence exists.
-solution_lenintNumber of moves in the minimal found sequence.
-time_msintSolver runtime.
-nodesintSearch nodes expanded.
-reason_if_unsolvedstrTimeout, deadlock type, or unknown.
-
-
+| Field               | Type    | Description                                 |
+|---------------------|---------|---------------------------------------------|
+| seed                | uint32  | Shuffle seed.                               |
+| profile             | str     | Rule profile name.                          |
+| draw                | int     | Draw size (1 or 3).                         |
+| peek_xray           | bool    | Whether X-ray information was enabled.      |
+| solved              | bool    | True if a legal win sequence exists.        |
+| solution_len        | int     | Number of moves in the minimal found sequence. |
+| time_ms             | int     | Solver runtime.                             |
+| nodes               | int     | Search nodes expanded.                      |
+| reason_if_unsolved  | str     | Timeout, deadlock type, or unknown.         |
 ---
 
 7. Interpretation
