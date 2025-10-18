@@ -26,14 +26,12 @@ The design captures both player realism and theoretical upper bounds.
 Each seed is solved under multiple profiles, each reflecting a different philosophy of play.
 Profiles form a monotonic ladder of increasing permissiveness—anything solvable under a stricter profile will also be solvable under all looser ones.
 
-ProfileDescriptionIntended Use
-
-STANDARDClosest to “classic” Klondike rules (as found in physical decks and early PC versions).Baseline reference for tradition-minded players.
-FRIENDLY_APPMatches most modern mobile apps: free supermoves, unlimited passes, foundation takeback allowed.Mirrors common user experience.
-MAX_RELAXRemoves all play restrictions that don’t affect logical solvability: free supermoves, unlimited passes, foundation takeback, safe autoplay, no staging limits.Estimates the maximum realistic solvable fraction for hidden-information play.
-XRAYIdentical to MAX_RELAX but with perfect information: the solver can see facedown cards.Upper-bound theoretical solvability—used for research calibration.
-
-
+| Profile       | Description                                                                                                         | Intended Use                                                        |
+|---------------|---------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| STANDARD      | Closest to “classic” Klondike rules (as found in physical decks and early PC versions).                             | Baseline reference for tradition-minded players.                    |
+| FRIENDLY_APP  | Matches most modern mobile apps: free supermoves, unlimited passes, foundation takeback allowed.                    | Mirrors common user experience.                                     |
+| MAX_RELAX     | Removes all play restrictions that don’t affect logical solvability: free supermoves, unlimited passes, foundation takeback, safe autoplay, no staging limits. | Estimates the maximum realistic solvable fraction for hidden-information play. |
+| XRAY          | Identical to MAX_RELAX but with perfect information: the solver can see facedown cards.                             | Upper-bound theoretical solvability—used for research calibration.  |
 2.1 Configurable dimensions
 
 Each profile is parameterized by:
