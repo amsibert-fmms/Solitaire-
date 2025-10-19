@@ -106,6 +106,12 @@ header h1 {
   align-items: stretch;
 }
 
+.controls-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
 .appearance-controls {
   display: flex;
   flex-direction: column;
