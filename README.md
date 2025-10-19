@@ -8,6 +8,7 @@ This project delivers a browser-based Klondike Solitaire experience whose primar
 - **Deterministic hand tags.** Each shuffle is encoded into a canonical string (hash tag) so identical hands are recognized even when dealt on different devices.
 - **Outcome logging hooks.** The front end exposes lightweight events you can integrate with analytics or a solver backend to mark hands as won, lost, or unresolved.
 - **Statistics-friendly storage.** Recommended dataset structures make it straightforward to aggregate winnability metrics over time.
+- **Automatic attempt persistence.** Logged attempts are cached in the browser so progress survives page refreshes until you clear the log.
 
 ## Running the game locally
 
@@ -66,6 +67,14 @@ window.solitaireUI.logAttempt({
 // When ready, download the CSV file.
 window.solitaireUI.exportAttempts();
 ```
+
+## Attempt persistence
+
+| Behaviour | Details |
+| --- | --- |
+| Local caching | Attempts added through `window.solitaireUI.logAttempt` are automatically persisted to `localStorage` under the key `solitaire.attemptLog.v1`. They are restored on page load so you can export even after a refresh. |
+| Clearing entries | Call `window.solitaireUI.clearAttemptLog()` to remove attempts from both the in-memory list and local storage. |
+| Fallback behaviour | If the browser disallows storage (for example, in privacy modes), the helpers still work in-memory; only persistence is skipped. |
 
 ## Validating exported datasets
 
