@@ -67,6 +67,22 @@ def test_pass_limits(profile, state, expected):
     assert profile.is_move_legal(state, move) is expected
 
 
+def test_passes_remaining_for_unlimited_profile():
+    assert MAX_RELAX.passes_remaining({"passes_made": 20}) is None
+
+
+def test_passes_remaining_counts_down():
+    assert STANDARD.passes_remaining({"passes_made": 1}) == 2
+    assert STANDARD.passes_remaining({"passes_made": "2"}) == 1
+    assert STANDARD.passes_remaining({"stock_passes": 3}) == 0
+
+
+def test_passes_remaining_handles_invalid_state_values():
+    assert STANDARD.passes_remaining({}) == 3
+    assert STANDARD.passes_remaining({"passes_made": -5}) == 3
+    assert STANDARD.passes_remaining({"passes_made": True}) == 3
+
+
 def test_draw_count_enforced():
     draw_move_one = {"type": "draw", "draw_count": 1}
     draw_move_three = {"type": "draw", "draw_count": 3}

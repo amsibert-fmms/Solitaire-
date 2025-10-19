@@ -1,9 +1,10 @@
 """Rules engine for solitaire solver profiles."""
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
-from typing import Any, Mapping, MutableMapping
 import json
+import math
+from dataclasses import asdict, dataclass
+from typing import Any, Mapping, MutableMapping
 
 
 def _get_value(obj: Any, key: str, default: Any = None) -> Any:
@@ -31,6 +32,32 @@ SUPERMOVE_STRENGTH = {
     "standard": 1,
     "relaxed": 2,
 }
+
+
+def _coerce_non_negative_int(value: Any, default: int = 0) -> int:
+    """Best-effort conversion of *value* into a non-negative integer."""
+
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value if value >= 0 else default
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return default
+        candidate = int(value)
+        return candidate if candidate >= 0 else default
+    if isinstance(value, str):
+        token = value.strip()
+        if not token:
+            return default
+        try:
+            candidate = int(token, 10)
+        except ValueError:
+            return default
+        return candidate if candidate >= 0 else default
+    return default
 
 
 def _normalise_pass_limit(value: Any) -> int | None:
@@ -108,6 +135,27 @@ class RuleProfile:
         """Return the numeric stock pass limit for the profile."""
 
         return _normalise_pass_limit(self.passes)
+
+    def passes_remaining(self, state: Any) -> int | None:
+        """Return how many stock passes remain for *state*.
+
+        ``None`` is returned when the profile allows unlimited recycling.  The
+        helper gracefully handles missing or malformed state values by
+        interpreting them as zero passes made.
+        """
+
+        limit = self.pass_limit
+        if limit is None:
+            return None
+
+        passes_made: Any = None
+        for key in ("passes_made", "stock_passes", "pass_count"):
+            passes_made = _get_value(state, key)
+            if passes_made is not None:
+                break
+        count = _coerce_non_negative_int(passes_made)
+        remaining = limit - count
+        return remaining if remaining > 0 else 0
 
     def is_move_legal(self, state: Any, move: Any) -> bool:
         """Determine whether *move* is allowed within *state* for this profile."""
