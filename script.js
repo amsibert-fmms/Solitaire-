@@ -9,7 +9,9 @@
     stock: document.getElementById("stock-count"),
     waste: document.getElementById("waste-count"),
     foundations: document.getElementById("foundation-count"),
-    moves: document.getElementById("move-count")
+    moves: document.getElementById("move-count"),
+    handTag: document.getElementById("hand-tag-value"),
+    seed: document.getElementById("seed-value")
   };
 
   const cardThemeClasses = ["card-theme-classic", "card-theme-vintage", "card-theme-midnight"];
@@ -27,6 +29,10 @@
       waste: 0,
       foundations: "0/52",
       moves: 0
+    },
+    metadata: {
+      handTag: "—",
+      seed: "—"
     }
   };
 
@@ -111,6 +117,36 @@
     }
   }
 
+  function formatMetadataValue(value, fallback) {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) return fallback;
+      return value.toString();
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : fallback;
+    }
+    return fallback;
+  }
+
+  function updateRunMetadata(partialMetadata = {}) {
+    const defaults = uiState.metadata;
+    const nextState = {
+      handTag: formatMetadataValue(partialMetadata.handTag, defaults.handTag),
+      seed: formatMetadataValue(partialMetadata.seed, defaults.seed)
+    };
+
+    uiState.metadata = nextState;
+
+    if (infoElements.handTag) {
+      infoElements.handTag.textContent = uiState.metadata.handTag;
+    }
+    if (infoElements.seed) {
+      infoElements.seed.textContent = uiState.metadata.seed;
+    }
+  }
+
   function applyCardTheme(theme) {
     if (!document.body) return;
     document.body.classList.remove(...cardThemeClasses);
@@ -128,6 +164,7 @@
       newGameBtn.addEventListener("click", () => {
         setStatusMessage("New game setup coming soon.");
         updateInfoCounts({ stock: 0, waste: 0, foundations: "0/52", moves: 0 });
+        updateRunMetadata({ handTag: "—", seed: "—" });
       });
     }
 
@@ -156,6 +193,7 @@
 
   function initializeUI() {
     updateInfoCounts(uiState.counts);
+    updateRunMetadata(uiState.metadata);
     clearStatusMessage();
     if (cardDesignSelect) {
       applyCardTheme(cardDesignSelect.value);
@@ -173,6 +211,13 @@
     toggleMenuVisibility,
     setStatusMessage,
     clearStatusMessage,
-    updateInfoCounts
+    updateInfoCounts,
+    updateRunMetadata,
+    setHandTag(handTag) {
+      updateRunMetadata({ handTag });
+    },
+    setSeed(seed) {
+      updateRunMetadata({ seed });
+    }
   };
 })();
