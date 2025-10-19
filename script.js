@@ -23,6 +23,58 @@
   ];
 
   const attemptLog = [];
+  const storage = {
+    key: "solitaire.attemptLog.v1",
+    available: null,
+    isAvailable() {
+      if (this.available !== null) {
+        return this.available;
+      }
+      try {
+        if (typeof window === "undefined" || !window.localStorage) {
+          this.available = false;
+          return this.available;
+        }
+        const testKey = "__solitaire_storage_test__";
+        window.localStorage.setItem(testKey, "1");
+        window.localStorage.removeItem(testKey);
+        this.available = true;
+        return this.available;
+      } catch (error) {
+        this.available = false;
+        return this.available;
+      }
+    },
+    load() {
+      if (!this.isAvailable()) return [];
+      try {
+        const raw = window.localStorage.getItem(this.key);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map((entry) => {
+            try {
+              return normaliseAttempt(entry);
+            } catch (error) {
+              return null;
+            }
+          })
+          .filter(Boolean);
+      } catch (error) {
+        return [];
+      }
+    },
+    save(entries) {
+      if (!this.isAvailable()) return;
+      try {
+        const payload = JSON.stringify(entries);
+        window.localStorage.setItem(this.key, payload);
+      } catch (error) {
+        // Silently ignore persistence issues so UI behaviour remains unaffected.
+      }
+    }
+  };
 
   const uiState = {
     menuOpen: true,
@@ -295,12 +347,14 @@
   function logAttempt(attempt = {}) {
     const normalised = normaliseAttempt(attempt);
     attemptLog.push(normalised);
+    storage.save(attemptLog);
     updateExportButtonState();
     return normalised;
   }
 
   function clearAttemptLog() {
     attemptLog.splice(0, attemptLog.length);
+    storage.save(attemptLog);
     updateExportButtonState();
   }
 
@@ -370,6 +424,11 @@
   }
 
   function initializeUI() {
+    const storedAttempts = storage.load();
+    if (storedAttempts.length > 0) {
+      attemptLog.push(...storedAttempts);
+      storage.save(attemptLog);
+    }
     updateInfoCounts(uiState.counts);
     updateRunMetadata(uiState.metadata);
     clearStatusMessage();
