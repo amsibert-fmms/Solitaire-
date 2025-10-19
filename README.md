@@ -39,6 +39,34 @@ fetch("/api/hands", {
 
 Backends should treat `tag` as the primary key when aggregating records. A single hand may appear multiple times if the same deal is replayed; in that case store each attempt separately or merge them according to your analytics needs.
 
+## Exporting attempts
+
+The UI exposes helpers for staging play attempts before exporting them as CSV. Logged entries populate the **Export Attempts** button in the controls panel; when at least one attempt is available the button triggers a download named `solitaire_attempts_YYYY-MM-DD-HH-MM-SS.csv`.
+
+Use the helpers below to integrate with solvers or analytics pipelines:
+
+| Helper | Purpose |
+| --- | --- |
+| `window.solitaireUI.logAttempt(attempt)` | Adds an attempt to the in-memory log. Accepts `tag`, `seed`, `result`, `moves`, `durationMs`, `timestampUtc`, and optional `notes`. Missing values are normalised to safe defaults. |
+| `window.solitaireUI.exportAttempts()` | Downloads the current log as CSV using the same structure as the helper above. |
+| `window.solitaireUI.clearAttemptLog()` | Empties the log, disabling the export button until new attempts arrive. |
+| `window.solitaireUI.getAttemptLog()` | Returns a shallow copy of the staged attempts for inspection or custom tooling. |
+
+```javascript
+window.solitaireUI.logAttempt({
+  tag: window.solitaireHandTag(),
+  seed: window.solitaireSeed(),
+  result: "win",
+  moves: 115,
+  durationMs: 92000,
+  timestampUtc: new Date().toISOString(),
+  notes: "First solver pass"
+});
+
+// When ready, download the CSV file.
+window.solitaireUI.exportAttempts();
+```
+
 ## Data model overview
 
 The canonical hand tag is derived from:

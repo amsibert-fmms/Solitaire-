@@ -3,6 +3,7 @@
   const newGameBtn = document.getElementById("new-game");
   const cardDesignSelect = document.getElementById("card-design");
   const backgroundSelect = document.getElementById("background-design");
+  const exportAttemptsBtn = document.getElementById("export-attempts");
   const controlsPanel = document.querySelector(".controls");
 
   const infoElements = {
@@ -21,6 +22,8 @@
     "background-deepsea"
   ];
 
+  const attemptLog = [];
+
   const uiState = {
     menuOpen: true,
     statusMessage: "",
@@ -35,6 +38,21 @@
       seed: "—"
     }
   };
+
+  function updateExportButtonState() {
+    if (!exportAttemptsBtn) return;
+    if (attemptLog.length === 0) {
+      exportAttemptsBtn.setAttribute("disabled", "");
+    } else {
+      exportAttemptsBtn.removeAttribute("disabled");
+    }
+    exportAttemptsBtn.setAttribute(
+      "aria-label",
+      attemptLog.length === 0
+        ? "Export attempts (disabled, no attempts yet)"
+        : `Export ${attemptLog.length} attempts as CSV`
+    );
+  }
 
   function setStatusMessage(message) {
     uiState.statusMessage = message ?? "";
@@ -159,6 +177,162 @@
     document.body.classList.add(`background-${theme}`);
   }
 
+  function toSafeString(value, fallback = "") {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : fallback;
+    }
+    if (typeof value === "number" || typeof value === "bigint") {
+      if (!Number.isFinite(Number(value))) {
+        return fallback;
+      }
+      return value.toString();
+    }
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) {
+        return fallback;
+      }
+      return value.toISOString();
+    }
+    return fallback;
+  }
+
+  function toNonNegativeInteger(value) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      if (value < 0) return undefined;
+      return Math.round(value);
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      const parsed = Number.parseInt(trimmed, 10);
+      if (!Number.isNaN(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+    return undefined;
+  }
+
+  function toIsoTimestamp(value) {
+    if (value instanceof Date) {
+      if (!Number.isNaN(value.getTime())) {
+        return value.toISOString();
+      }
+      return new Date().toISOString();
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return new Date().toISOString();
+      }
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+    return new Date().toISOString();
+  }
+
+  function normaliseAttempt(attempt = {}) {
+    const tag = toSafeString(attempt.tag, "untagged");
+    const seed = toSafeString(
+      attempt.seed ?? attempt.seedValue ?? attempt.shuffleSeed,
+      ""
+    );
+    const result = toSafeString(attempt.result, "unknown").toLowerCase();
+    const moves = toNonNegativeInteger(attempt.moves);
+    const durationMs = toNonNegativeInteger(
+      attempt.durationMs ?? attempt.duration_ms
+    );
+    const timestamp = toIsoTimestamp(
+      attempt.timestampUtc ?? attempt.timestamp_utc ?? attempt.timestamp
+    );
+    const notes = toSafeString(attempt.notes, "");
+
+    return {
+      tag,
+      seed,
+      result,
+      moves: moves ?? "",
+      duration_ms: durationMs ?? "",
+      timestamp_utc: timestamp,
+      notes
+    };
+  }
+
+  function escapeCsvValue(value) {
+    if (value === null || value === undefined) return "";
+    const stringValue = String(value);
+    if (/[",\n\r]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  }
+
+  function buildAttemptCsv(entries) {
+    const headers = [
+      "tag",
+      "seed",
+      "result",
+      "moves",
+      "duration_ms",
+      "timestamp_utc",
+      "notes"
+    ];
+    const rows = entries.map((entry) =>
+      headers.map((key) => escapeCsvValue(entry[key])).join(",")
+    );
+    return [headers.join(","), ...rows].join("\r\n");
+  }
+
+  function logAttempt(attempt = {}) {
+    const normalised = normaliseAttempt(attempt);
+    attemptLog.push(normalised);
+    updateExportButtonState();
+    return normalised;
+  }
+
+  function clearAttemptLog() {
+    attemptLog.splice(0, attemptLog.length);
+    updateExportButtonState();
+  }
+
+  function exportAttempts() {
+    if (attemptLog.length === 0) {
+      setStatusMessage("No attempts to export yet.");
+      return;
+    }
+
+    const csvContent = buildAttemptCsv(attemptLog);
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;"
+    });
+    const url = URL.createObjectURL(blob);
+
+    const timestamp = new Date().toISOString().replace(/[:T]/g, "-").split(".")[0];
+    const filename = `solitaire_attempts_${timestamp}.csv`;
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.setAttribute("hidden", "");
+    document.body?.appendChild(link);
+    link.click();
+    requestAnimationFrame(() => {
+      link.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    setStatusMessage(`Exported ${attemptLog.length} attempts as CSV.`);
+  }
+
   function bindEventHandlers() {
     if (newGameBtn) {
       newGameBtn.addEventListener("click", () => {
@@ -166,6 +340,10 @@
         updateInfoCounts({ stock: 0, waste: 0, foundations: "0/52", moves: 0 });
         updateRunMetadata({ handTag: "—", seed: "—" });
       });
+    }
+
+    if (exportAttemptsBtn) {
+      exportAttemptsBtn.addEventListener("click", exportAttempts);
     }
 
     if (cardDesignSelect) {
@@ -202,6 +380,7 @@
       applyBackgroundTheme(backgroundSelect.value);
     }
     toggleMenuVisibility(true);
+    updateExportButtonState();
   }
 
   bindEventHandlers();
@@ -213,11 +392,25 @@
     clearStatusMessage,
     updateInfoCounts,
     updateRunMetadata,
+    logAttempt,
+    clearAttemptLog,
+    getAttemptLog() {
+      return attemptLog.slice();
+    },
+    exportAttempts,
     setHandTag(handTag) {
       updateRunMetadata({ handTag });
     },
     setSeed(seed) {
       updateRunMetadata({ seed });
     }
+  };
+
+  window.solitaireHandTag = function solitaireHandTag() {
+    return uiState.metadata.handTag;
+  };
+
+  window.solitaireSeed = function solitaireSeed() {
+    return uiState.metadata.seed;
   };
 })();
