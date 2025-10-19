@@ -33,12 +33,50 @@ SUPERMOVE_STRENGTH = {
 }
 
 
+def _normalise_pass_limit(value: Any) -> int | None:
+    """Convert *value* into a normalised pass limit.
+
+    The rules engine historically used string identifiers (``"three"``,
+    ``"unlimited"``) to describe how many times the stock may be recycled.  In
+    practice configuration data often comes from user input where the value may
+    already be an integer or a numeric string.  This helper accepts either form
+    and guarantees that the result is ``None`` (meaning unlimited) or a
+    non-negative integer.
+
+    ``ValueError`` is raised when the content is recognised but invalid (for
+    example a negative number) while ``TypeError`` flags unsupported data types.
+    """
+
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise TypeError("Boolean values are not valid pass limits")
+    if isinstance(value, int):
+        if value < 0:
+            raise ValueError("Pass limit must be non-negative")
+        return value
+    if isinstance(value, str):
+        token = value.strip().lower()
+        if not token:
+            return None
+        if token in PASS_LIMITS:
+            return PASS_LIMITS[token]
+        try:
+            parsed = int(token, 10)
+        except ValueError as exc:  # pragma: no cover - defensive branch
+            raise ValueError(f"Unknown pass limit value: {value!r}") from exc
+        if parsed < 0:
+            raise ValueError("Pass limit must be non-negative")
+        return parsed
+    raise TypeError(f"Unsupported pass limit type: {type(value).__name__}")
+
+
 @dataclass(frozen=True)
 class RuleProfile:
     """A configurable rules profile for the solitaire engine."""
 
     draw: int
-    passes: str
+    passes: str | int | None
     supermove: str
     foundation_takeback: bool
     peek_xray: bool
@@ -65,6 +103,12 @@ class RuleProfile:
         """Deserialise a :class:`RuleProfile` from *payload*."""
         return cls.from_dict(json.loads(payload))
 
+    @property
+    def pass_limit(self) -> int | None:
+        """Return the numeric stock pass limit for the profile."""
+
+        return _normalise_pass_limit(self.passes)
+
     def is_move_legal(self, state: Any, move: Any) -> bool:
         """Determine whether *move* is allowed within *state* for this profile."""
         action = _get_value(move, "type") or _get_value(move, "action")
@@ -81,7 +125,7 @@ class RuleProfile:
             return requested_draw in (None, self.draw)
 
         if action == "stock_pass":
-            limit = PASS_LIMITS.get(self.passes.lower(), None)
+            limit = self.pass_limit
             if limit is None:
                 return True
             passes_made = _get_value(state, "passes_made", 0)
