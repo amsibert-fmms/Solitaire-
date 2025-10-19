@@ -1,183 +1,109 @@
 # Methodology
 
-## 10. Data Generation and Storage
+This document outlines how solitaire hands are identified, logged, and analyzed so that contributors can reproduce statistics on winnability.
 
-The dataset is built through systematic seed evaluation using deterministic shuffles, controlled solver configurations, and well-defined output formats.
-Every recorded row corresponds to one combination of:
+## 1. Hand tagging pipeline
 
-> (seed, profile, draw_size, time_cap) → outcome
+1. **Seed selection.** Each new deal is produced from a 32-bit unsigned integer seed (`0 ≤ seed ≤ 2³² − 1`). Seeds can be sampled sequentially or from curated lists of noteworthy hands.
+2. **Deterministic shuffle.** A Fisher–Yates shuffle driven solely by the seed arranges the 52-card deck. No external entropy sources are permitted.
+3. **Canonical encoding.** The dealt layout is converted into a normalized tuple capturing:
+   - Tableau columns (face-down boundary + face-up cards).
+   - Stock order (top to bottom) and waste order (bottom to top).
+   - Foundation progress for each suit.
+4. **Hashing.** The tuple is serialized into bytes and digested with SHA-256. The resulting 64-character hexadecimal string is the hand tag exposed to the UI.
 
-This section defines how those are produced and stored.
+The combination `(seed, hash)` is stable across browsers, making it a reliable identifier when sharing or aggregating results.
 
-### 10.1 Seed generation
+## 2. Event emission
 
-Each layout derives from a 32-bit unsigned integer seed (0 ≤ seed ≤ 2³²−1).
-The shuffle algorithm is fixed and deterministic:
+The web client emits lifecycle events that you can intercept to log progress:
 
-```
-rng = Random(seed)
-shuffle(deck)
-```
+| Event | Fired when | Payload |
+| --- | --- | --- |
+| `hand:new` | A deal is generated. | `{ tag, seed }` |
+| `hand:won` | Foundations complete. | `{ tag, moveCount, durationMs }` |
+| `hand:lost` | Player abandons or deck exhausted. | `{ tag, reason }` |
 
-No additional entropy sources (timestamps, process IDs) are used.
-Seeds are sampled either sequentially (0…N−1) or by pseudorandom sampling from the full range; the sampling method is recorded in the batch metadata.
+Attach listeners via:
 
-| Strategy | Purpose |
-| --- | --- |
-| Sequential 0–99999 | Baseline 100k-seed sample for reproducibility. |
-| Stratified (low/mid/high rank coverage) | Balanced exploration of initial tableau variety. |
-| Challenge subset | Seeds that exceeded time limit in prior runs. |
-
-### 10.2 Batch runner workflow
-
-Each compute node or process executes:
-
-```
-python runner/batch.py \
-  --profile max_relax \
-  --draw 1 \
-  --time-cap-ms 500 \
-  --seed-range 0 10000 \
-  --out data/parquet/batch_0001.parquet
+```javascript
+document.addEventListener("hand:won", (event) => {
+  enqueueRecord({
+    tag: event.detail.tag,
+    result: "win",
+    moves: event.detail.moveCount,
+    duration_ms: event.detail.durationMs,
+  });
+});
 ```
 
-The batch runner:
+The helper `enqueueRecord` can persist data immediately or batch it for periodic uploads.
 
-1. Generates or reads the seed list.
-2. Loads the requested rule profile.
-3. Solves each seed under the given configuration (time-capped).
-4. Streams results into memory-efficient parquet chunks (≈10k rows per file).
-5. Writes an accompanying `meta.json` describing engine version, seed range, profile parameters, and environment details.
+## 3. Storage layout
 
-### 10.3 File layout
+A lightweight, analytics-friendly dataset might adopt the following directories:
 
 ```
 data/
-  parquet/
-    batch_0001.parquet
-    batch_0002.parquet
-    ...
-  meta/
-    batch_0001_meta.json
-    ...
-  summaries/
+  raw/
+    2024-11-01_attempts.parquet
+    2024-11-08_attempts.parquet
+  derived/
     solvability_summary.parquet
-    feature_ablation.parquet
+    streaks.parquet
+  meta/
+    schema.json
+    pipeline_version.txt
 ```
 
-Parquet files contain raw per-seed results.
+- **Raw files** contain one row per play attempt with columns such as `tag`, `seed`, `result`, `moves`, `duration_ms`, `timestamp_utc`, and optional player identifiers.
+- **Derived files** hold aggregated statistics regenerated from the raw layer.
+- **Metadata** documents schema revisions, hashing algorithm versions, and validation results.
 
-Meta JSON files describe the context of each batch (solver version, host info, profile JSON, and date).
+## 4. Validation checklist
 
-Summaries are aggregated analyses periodically regenerated from the parquet directory.
+Before publishing statistics, verify the dataset with the following steps:
 
-### 10.4 Parquet schema
+1. **Schema validation.** Confirm required columns exist and data types match expectations.
+2. **Duplicate detection.** Ensure there are no conflicting records with the same `(tag, attempt_id)` combination.
+3. **Determinism audit.** Recompute the hash for a sample of seeds and compare against stored tags.
+4. **Outcome coverage.** Check that each raw file contains both wins and losses; flag runs where all games are abandoned.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| seed | uint32 | 32-bit seed value |
-| profile | str | rule profile name |
-| draw | int | 1 or 3 |
-| passes | str | "unlimited" or integer |
-| supermove | str | "free" / "staged" |
-| foundation_takeback | bool | profile setting |
-| peek_xray | bool | visibility flag |
-| solved | bool | true if solved |
-| solution_len | int | number of moves |
-| solver_time_ms | int | runtime |
-| nodes | int | search nodes expanded |
-| reason_if_unsolved | str | "time_cap", "deadlock", etc. |
-| bf_mean | float | average branching factor |
-| bf_p95 | float | 95th percentile branching factor |
-| engine_version | str | git hash or semver |
-| timestamp_utc | datetime | run timestamp |
-| hostname | str | optional; anonymized compute node ID |
+A simple validation script could live under `scripts/validate.py` and be invoked with:
 
-### 10.5 Metadata JSON example
-
-```
-{
-  "batch_id": "0001",
-  "engine_version": "e5a92f4",
-  "profile": "max_relax",
-  "draw": 1,
-  "time_cap_ms": 500,
-  "seed_start": 0,
-  "seed_end": 9999,
-  "num_workers": 16,
-  "host": "solver01",
-  "start_time": "2025-10-18T04:12:00Z",
-  "end_time": "2025-10-18T04:43:12Z"
-}
+```bash
+python scripts/validate.py data/raw/*.parquet
 ```
 
-### 10.6 Reproducibility and validation
+## 5. Aggregation examples
 
-To guarantee deterministic results:
+Use DuckDB or Pandas to build rollups:
 
-1. The shuffle, move generator, and search are pure functions of `(seed, profile, draw, time_cap, engine_version)`.
-2. Runs are idempotent—re-running the same batch regenerates identical parquet rows.
-3. A `make validate` target verifies:
-   - Parquet schema matches expected columns and types.
-   - Re-run checksums match prior runs.
-   - No duplicate `(seed, profile, draw)` keys.
-
-Example validation command:
-
-```
-make validate-parquet
-```
-
-### 10.7 Aggregation and summaries
-
-After N batches, a nightly job concatenates all parquet files using DuckDB or Pandas:
-
-```
+```python
 import duckdb
-duckdb.sql("""
-  CREATE TABLE solvability AS
-  SELECT
-    profile,
-    draw,
-    COUNT(*) AS seeds,
-    SUM(solved)::FLOAT / COUNT(*) AS solvable_rate,
-    AVG(solver_time_ms) AS mean_time
-  FROM parquet_scan('data/parquet/*.parquet')
-  GROUP BY profile, draw;
-""")
+
+duckdb.sql(
+    """
+    CREATE OR REPLACE TABLE solvability AS
+    SELECT
+      tag,
+      ANY_VALUE(seed) AS seed,
+      COUNT_IF(result = 'win')::FLOAT / COUNT(*) AS win_rate,
+      COUNT(*) AS attempts,
+      AVG(moves) AS avg_moves,
+      AVG(duration_ms) AS avg_duration_ms
+    FROM parquet_scan('data/raw/*.parquet')
+    GROUP BY tag
+    """
+)
 ```
 
-These summary tables feed dashboards and published statistics.
+Extend this query to slice by player, time period, or rule variant as additional columns become available.
 
-### 10.8 Long-term storage
+## 6. Reproducibility
 
-Raw data: Parquet + metadata archived under `data/parquet/` (versioned).
+- Version control any change to the shuffling algorithm, serialization format, or hashing strategy.
+- Store the generator code alongside the dataset version in `meta/pipeline_version.txt`.
+- Capture solver or UI release hashes so that historical statistics can be traced back to the exact logic that produced them.
 
-Processed data: Aggregations (e.g., solvability rates, feature ablations) saved to `data/summaries/`.
-
-Cold storage: `.tar.zst` archives periodically synced to `/mnt/backups/solitaire/` or cloud storage for reproducibility.
-
-All generated datasets are immutable; newer runs are appended rather than overwritten.
-
-### 10.9 Optional visualization
-
-A lightweight FastAPI server exposes read-only endpoints:
-
-```
-/api/solvable_rate?profile=max_relax&draw=1
-/api/seed_detail?seed=12345
-```
-
-These power static dashboards showing:
-
-- Solvability rates by profile/draw.
-- Distribution of solution lengths and solver times.
-- Example replay sequences.
-
-### 10.10 Provenance summary
-
-Each record in the dataset can be traced via:
-
-`(seed, profile, draw) → batch_id → meta.json → engine_version`
-
-This guarantees that every published solvability statistic can be re-generated bit-for-bit.
+Following these guidelines keeps the solitaire hand tracker dependable and enables community members to verify reported win rates.
