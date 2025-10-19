@@ -350,6 +350,12 @@ main {
   z-index: 1000;
 }
 
+.card.selected {
+  outline: 3px solid rgba(247, 201, 72, 0.85);
+  outline-offset: -4px;
+  box-shadow: 0 0 0 3px rgba(247, 201, 72, 0.55), var(--card-shadow);
+}
+
 .card .rank {
   font-size: 1.4rem;
   font-weight: 700;
