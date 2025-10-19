@@ -8,4 +8,4 @@
 | ✅ | Publish a reference `scripts/validate.py` that enforces the dataset checklist from `docs/METHOD.md`. |
 | ✅ | Provide a CLI to surface win/loss streak analytics for exported attempt logs. |
 | ✅ | Expand the dataset summary CLI with filtering and JSON output options. |
-| ☐ | Build automated solvers to benchmark human win rates against AI play. |
+| ✅ | Build automated solvers to benchmark human win rates against AI play. |

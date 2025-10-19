@@ -4,7 +4,7 @@ This project delivers a browser-based Klondike Solitaire experience whose primar
 
 ## Features
 
-- **Playable Klondike implementation.** Interact with `index.html` to drag cards, recycle the stock, and play full games in the browser.
+- **Playable Klondike implementation.** Interact with `index.html` to click-select card stacks, double-click promotions to the foundation, recycle the stock, and play full games in the browser.
 - **Deterministic hand tags.** Each shuffle is encoded into a canonical string (hash tag) so identical hands are recognized even when dealt on different devices.
 - **Outcome logging hooks.** The front end exposes lightweight events you can integrate with analytics or a solver backend to mark hands as won, lost, or unresolved.
 - **Statistics-friendly storage.** Recommended dataset structures make it straightforward to aggregate winnability metrics over time.
@@ -18,6 +18,17 @@ This project delivers a browser-based Klondike Solitaire experience whose primar
    ```
 2. Visit [http://localhost:8000](http://localhost:8000) in your browser.
 3. Use the **New Game** button to redeal the deck. The hand tag for the active deal is available via the `window.solitaireHandTag()` helper.
+
+### Controls at a glance
+
+| Action | Effect |
+| --- | --- |
+| Click the **New Game** button | Deals a fresh deterministic layout and updates the hand tag/seed readouts. |
+| Click a face-up card | Selects the card (and any cards stacked beneath it) so it can be moved to another tableau column. |
+| Click an empty tableau column | Drops the currently selected stack if a legal move is available. |
+| Double-click a face-up card | Sends the card to the appropriate foundation when legal. |
+| Click the stock pile | Draws up to three new cards from the stock; clicking again when empty recycles the waste (respecting pass limits). |
+| Click the waste pile | Selects the top waste card for tableau moves or double-click to promote to the foundation. |
 
 ## Recording outcomes
 
@@ -68,6 +79,13 @@ window.solitaireUI.logAttempt({
 window.solitaireUI.exportAttempts();
 ```
 
+### Runtime helpers
+
+| Helper | Purpose |
+| --- | --- |
+| `window.solitaireUI.startNewGame(seed?)` | Deals a new game. Pass a numeric seed to replay a specific layout or omit it for a fresh randomised seed. |
+| `window.solitaireUI.getStateSnapshot()` | Returns the current seed, hand tag, stock/waste counts, foundation totals, and move count for analytics dashboards. |
+
 ## Attempt persistence
 
 | Behaviour | Details |
@@ -90,6 +108,25 @@ Run the validation script whenever you append records to your dataset. It checks
 The streaks helper spotlights both the longest and current win/loss runs so you can spot heater stretches or cold spells at a glance when reviewing exported logs.
 
 The script prints a summary for each file and exits with status code `1` when any errors are encountered.
+
+## Automated solver CLI
+
+Use the solver to benchmark deal difficulty or generate baseline datasets.
+
+| Command | Description |
+| --- | --- |
+| `python scripts/solver.py --games 25 --draw-count 1 --pass-limit 3` | Simulate 25 games using draw-one rules and up to three stock recycles. |
+| `python scripts/solver.py --seed 123456 --max-steps 8000` | Replay a specific shuffle seed with a higher iteration cap for more exhaustive exploration. |
+
+### Solver options
+
+| Option | Purpose |
+| --- | --- |
+| `--games <n>` | Number of games to simulate in a batch run. |
+| `--draw-count <n>` | Cards drawn from the stock at a time (defaults to three). |
+| `--pass-limit <n>` | Maximum stock recycles; use `-1` for unlimited. |
+| `--max-steps <n>` | Safety cap that stops runaway simulations. |
+| `--quiet` | Suppress individual game summaries and print only the aggregate line. |
 
 ### Summary CLI options
 
