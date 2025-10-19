@@ -84,6 +84,7 @@ Run the validation script whenever you append records to your dataset. It checks
 | --- | --- |
 | `python scripts/validate.py data/raw/*.csv` | Validate one or more CSV files exported from the UI. |
 | `python scripts/validate.py data/raw/*.parquet` | Validate Parquet files (requires the optional `pyarrow` dependency). |
+| `python scripts/summary.py data/raw/*.csv` | Print aggregate statistics (win rate, move counts, durations) for exported datasets. |
 
 The script prints a summary for each file and exits with status code `1` when any errors are encountered.
 
