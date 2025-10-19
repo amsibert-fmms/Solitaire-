@@ -92,3 +92,45 @@ def test_serialisation_round_trip():
 @pytest.mark.parametrize("profile", [MAX_RELAX, FRIENDLY_APP, STANDARD, XRAY])
 def test_unknown_moves_are_allowed(profile):
     assert profile.is_move_legal({}, {"type": "custom"})
+
+
+def _make_profile(passes):
+    return RuleProfile(
+        draw=1,
+        passes=passes,
+        supermove="standard",
+        foundation_takeback=False,
+        peek_xray=False,
+        autoplay_safe_only=True,
+        undo_unlimited=False,
+    )
+
+
+def test_numeric_string_pass_limit_is_respected():
+    profile = _make_profile("5")
+    assert profile.pass_limit == 5
+    assert profile.is_move_legal({"passes_made": 4}, {"type": "stock_pass"})
+    assert not profile.is_move_legal({"passes_made": 5}, {"type": "stock_pass"})
+
+
+def test_integer_pass_limit_is_respected():
+    profile = _make_profile(2)
+    assert profile.pass_limit == 2
+    assert profile.is_move_legal({"passes_made": 1}, {"type": "stock_pass"})
+    assert not profile.is_move_legal({"passes_made": 2}, {"type": "stock_pass"})
+
+
+def test_blank_pass_limit_treated_as_unlimited():
+    profile = _make_profile("   ")
+    assert profile.pass_limit is None
+    assert profile.is_move_legal({"passes_made": 100}, {"type": "stock_pass"})
+
+
+@pytest.mark.parametrize(
+    "value,expected_exception",
+    [(-1, ValueError), ("-1", ValueError), ("bogus", ValueError), (True, TypeError), (3.5, TypeError)],
+)
+def test_invalid_pass_limits_raise(value, expected_exception):
+    profile = _make_profile(value)
+    with pytest.raises(expected_exception):
+        _ = profile.pass_limit
