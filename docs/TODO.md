@@ -6,4 +6,5 @@
 | ✅ | Display the active hand tag and seed within the UI to assist manual entry. |
 | ✅ | Add an export button that downloads recent attempts as CSV. |
 | ✅ | Publish a reference `scripts/validate.py` that enforces the dataset checklist from `docs/METHOD.md`. |
+| ✅ | Provide a CLI to surface win/loss streak analytics for exported attempt logs. |
 | ☐ | Build automated solvers to benchmark human win rates against AI play. |
