@@ -51,6 +51,21 @@ def test_compute_streak_summary_tracks_longest_and_current():
     assert summary.current_streak_length == 2
 
 
+def test_compute_streak_summary_can_treat_abandoned_as_loss():
+    records = [
+        build_record(result="abandoned"),
+        build_record(result="abandoned"),
+        build_record(result="loss"),
+    ]
+
+    summary = compute_streak_summary(records, abandoned_as_loss=True)
+
+    assert summary.losses == 3
+    assert summary.longest_loss_streak == 3
+    assert summary.current_streak_result == "loss"
+    assert summary.current_streak_length == 3
+
+
 def test_format_streak_summary_includes_current_streak(tmp_path: Path):
     summary = StreakSummary(
         total_records=5,
@@ -87,3 +102,23 @@ def test_main_prints_streak_summary(tmp_path: Path, capsys: pytest.CaptureFixtur
     assert exit_code == 0
     assert "sample.csv" in captured.out
     assert "longest win streak" in captured.out
+
+
+def test_main_treats_abandoned_as_losses_when_requested(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    csv_path = tmp_path / "sample.csv"
+    csv_path.write_text(
+        "tag,result,timestamp_utc\n"
+        "hand-1,abandoned,2023-01-01T00:00:00Z\n"
+        "hand-2,abandoned,2023-01-02T00:00:00Z\n"
+        "hand-3,loss,2023-01-03T00:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["--treat-abandoned-as-loss", str(csv_path)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "losses=3" in captured.out
+    assert "longest loss streak: 3" in captured.out

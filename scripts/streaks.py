@@ -30,7 +30,9 @@ def _normalise_result(result: str | None) -> str:
     return (result or "").strip().lower()
 
 
-def compute_streak_summary(records: Sequence[Record]) -> StreakSummary:
+def compute_streak_summary(
+    records: Sequence[Record], *, abandoned_as_loss: bool = False
+) -> StreakSummary:
     total = len(records)
     wins = 0
     losses = 0
@@ -40,24 +42,28 @@ def compute_streak_summary(records: Sequence[Record]) -> StreakSummary:
 
     for record in records:
         result = _normalise_result(record.result)
-        if result == "win":
+        tracked_result = result
+        if result == "abandoned" and abandoned_as_loss:
+            tracked_result = "loss"
+
+        if tracked_result == "win":
             wins += 1
-        elif result == "loss":
+        elif tracked_result == "loss":
             losses += 1
 
-        if result not in TRACKED_RESULTS:
+        if tracked_result not in TRACKED_RESULTS:
             current_result = None
             current_length = 0
             continue
 
-        if result == current_result:
+        if tracked_result == current_result:
             current_length += 1
         else:
-            current_result = result
+            current_result = tracked_result
             current_length = 1
 
-        if current_length > longest[result]:
-            longest[result] = current_length
+        if current_length > longest[tracked_result]:
+            longest[tracked_result] = current_length
 
     if current_result not in TRACKED_RESULTS:
         current_result = None
@@ -88,16 +94,18 @@ def format_streak_summary(path: Path, summary: StreakSummary) -> str:
     return "\n".join(lines)
 
 
-def summarise_path(path: Path) -> StreakSummary:
+def summarise_path(path: Path, *, abandoned_as_loss: bool = False) -> StreakSummary:
     records = load_records(path)
-    return compute_streak_summary(records)
+    return compute_streak_summary(records, abandoned_as_loss=abandoned_as_loss)
 
 
-def run(paths: Iterable[str]) -> list[tuple[Path, StreakSummary]]:
+def run(
+    paths: Iterable[str], *, abandoned_as_loss: bool = False
+) -> list[tuple[Path, StreakSummary]]:
     results: list[tuple[Path, StreakSummary]] = []
     for raw_path in paths:
         path = Path(raw_path)
-        summary = summarise_path(path)
+        summary = summarise_path(path, abandoned_as_loss=abandoned_as_loss)
         results.append((path, summary))
     return results
 
@@ -111,6 +119,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         nargs="+",
         help="Paths to dataset files. Use shell globs to analyse multiple files at once.",
     )
+    parser.add_argument(
+        "--treat-abandoned-as-loss",
+        dest="abandoned_as_loss",
+        action="store_true",
+        help="Count 'abandoned' attempts as losses when computing streaks.",
+    )
     return parser
 
 
@@ -119,7 +133,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        summaries = run(args.paths)
+        summaries = run(args.paths, abandoned_as_loss=args.abandoned_as_loss)
     except DatasetError as exc:
         parser.error(str(exc))
 
