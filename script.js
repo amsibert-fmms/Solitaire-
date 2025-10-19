@@ -15,12 +15,12 @@
     seed: document.getElementById("seed-value")
   };
 
-  const cardThemeClasses = ["card-theme-classic", "card-theme-vintage", "card-theme-midnight"];
-  const backgroundThemeClasses = [
-    "background-classic",
-    "background-forest",
-    "background-deepsea"
-  ];
+  const cardThemes = ["classic", "vintage", "midnight"];
+  const cardThemeClasses = cardThemes.map((theme) => `card-theme-${theme}`);
+  const backgroundThemes = ["classic", "forest", "deepsea"];
+  const backgroundThemeClasses = backgroundThemes.map(
+    (theme) => `background-${theme}`
+  );
 
   const attemptLog = [];
   const storage = {
@@ -218,15 +218,19 @@
   }
 
   function applyCardTheme(theme) {
-    if (!document.body) return;
+    if (!document.body) return cardThemes[0];
+    const safeTheme = cardThemes.includes(theme) ? theme : cardThemes[0];
     document.body.classList.remove(...cardThemeClasses);
-    document.body.classList.add(`card-theme-${theme}`);
+    document.body.classList.add(`card-theme-${safeTheme}`);
+    return safeTheme;
   }
 
   function applyBackgroundTheme(theme) {
-    if (!document.body) return;
+    if (!document.body) return backgroundThemes[0];
+    const safeTheme = backgroundThemes.includes(theme) ? theme : backgroundThemes[0];
     document.body.classList.remove(...backgroundThemeClasses);
-    document.body.classList.add(`background-${theme}`);
+    document.body.classList.add(`background-${safeTheme}`);
+    return safeTheme;
   }
 
   function toSafeString(value, fallback = "") {
@@ -403,16 +407,22 @@
     if (cardDesignSelect) {
       cardDesignSelect.addEventListener("change", (event) => {
         const { value } = event.target;
-        applyCardTheme(value);
-        setStatusMessage(`Card design updated to ${value}.`);
+        const appliedTheme = applyCardTheme(value);
+        if (appliedTheme !== value) {
+          cardDesignSelect.value = appliedTheme;
+        }
+        setStatusMessage(`Card design updated to ${appliedTheme}.`);
       });
     }
 
     if (backgroundSelect) {
       backgroundSelect.addEventListener("change", (event) => {
         const { value } = event.target;
-        applyBackgroundTheme(value);
-        setStatusMessage(`Background updated to ${value}.`);
+        const appliedTheme = applyBackgroundTheme(value);
+        if (appliedTheme !== value) {
+          backgroundSelect.value = appliedTheme;
+        }
+        setStatusMessage(`Background updated to ${appliedTheme}.`);
       });
     }
 
@@ -433,10 +443,10 @@
     updateRunMetadata(uiState.metadata);
     clearStatusMessage();
     if (cardDesignSelect) {
-      applyCardTheme(cardDesignSelect.value);
+      cardDesignSelect.value = applyCardTheme(cardDesignSelect.value);
     }
     if (backgroundSelect) {
-      applyBackgroundTheme(backgroundSelect.value);
+      backgroundSelect.value = applyBackgroundTheme(backgroundSelect.value);
     }
     toggleMenuVisibility(true);
     updateExportButtonState();
