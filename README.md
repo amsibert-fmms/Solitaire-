@@ -67,6 +67,17 @@ window.solitaireUI.logAttempt({
 window.solitaireUI.exportAttempts();
 ```
 
+## Validating exported datasets
+
+Run the validation script whenever you append records to your dataset. It checks for missing columns, duplicate attempts, and suspicious result distributions.
+
+| Command | Purpose |
+| --- | --- |
+| `python scripts/validate.py data/raw/*.csv` | Validate one or more CSV files exported from the UI. |
+| `python scripts/validate.py data/raw/*.parquet` | Validate Parquet files (requires the optional `pyarrow` dependency). |
+
+The script prints a summary for each file and exits with status code `1` when any errors are encountered.
+
 ## Data model overview
 
 The canonical hand tag is derived from:

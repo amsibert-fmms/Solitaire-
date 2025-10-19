@@ -69,11 +69,12 @@ Before publishing statistics, verify the dataset with the following steps:
 3. **Determinism audit.** Recompute the hash for a sample of seeds and compare against stored tags.
 4. **Outcome coverage.** Check that each raw file contains both wins and losses; flag runs where all games are abandoned.
 
-A simple validation script could live under `scripts/validate.py` and be invoked with:
+A simple validation script lives under `scripts/validate.py` and can be invoked with the commands below:
 
-```bash
-python scripts/validate.py data/raw/*.parquet
-```
+| Command | When to use it |
+| --- | --- |
+| `python scripts/validate.py data/raw/*.csv` | Datasets exported directly from the browser helper. |
+| `python scripts/validate.py data/raw/*.parquet` | Post-processed parquet files (requires `pyarrow`). |
 
 ## 5. Aggregation examples
 
