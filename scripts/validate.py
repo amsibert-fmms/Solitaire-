@@ -54,8 +54,11 @@ def _load_parquet(path: Path) -> Iterator[Mapping[str, object]]:
         raise DatasetError(
             f"{path}: Reading Parquet files requires the 'pyarrow' package to be installed"
         )
-    pyarrow = importlib.import_module("pyarrow")
-    table = pyarrow.parquet.read_table(path)
+    parquet_module = importlib.import_module("pyarrow.parquet")
+    try:
+        table = parquet_module.read_table(path)
+    except Exception as exc:  # pragma: no cover - depends on pyarrow errors
+        raise DatasetError(f"{path}: Unable to read Parquet file: {exc}") from exc
     for batch in table.to_batches():
         for row in batch.to_pylist():
             yield row

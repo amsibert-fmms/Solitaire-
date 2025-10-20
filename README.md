@@ -158,6 +158,40 @@ Use the solver to benchmark deal difficulty or generate baseline datasets.
 | --- | --- |
 | `--treat-abandoned-as-loss` | Count `abandoned` attempts as losses so they extend loss streak calculations. |
 
+## Difficulty scoring pipeline
+
+| Command | Purpose |
+| --- | --- |
+| `python scripts/update_difficulty.py` | Populate `difficulty_score` and `difficulty_level` for all wins lacking labels. The command seeds `data/wins.parquet` from the text-based `data/wins_seed.csv` if the binary Parquet log is absent. |
+| `python scripts/update_difficulty.py --since 2025-10-01 --limit 5000` | Re-score recent wins in batches when backfilling historical exports. |
+
+Nightly automation is handled by the scheduled workflow in
+`.github/workflows/update_difficulty.yml`, which mirrors the cron entry
+`0 1 * * * /usr/bin/python3 /srv/solitaire/update_difficulty.py` suggested for
+on-premise deployments. Deck-level medians can be recalculated by executing the
+DuckDB script in `sql/aggregate_deck_difficulty.sql` after the win log refresh
+completes.
+
+Refer to [`docs/api.md`](docs/api.md) for examples that upload fresh wins to the
+Flask connector (`server/app.py`) and retrieve summarised deck statistics.
+
+### Sample analytics data
+
+Binary Parquet artefacts are generated locally so that code review tools never
+need to diff opaque files. The repository ships with a tiny CSV seed
+(`data/wins_seed.csv`) that mirrors the schema expected by the nightly job. When
+`python scripts/update_difficulty.py` runs for the first time it hydrates
+`data/wins.parquet` automatically.
+
+To regenerate the demonstration dataset from scratch:
+
+```bash
+rm -f data/wins.parquet
+python scripts/update_difficulty.py --limit 2 --verbose
+```
+
+Subsequent executions will reuse the freshly created Parquet file.
+
 ## Data model overview
 
 The canonical hand tag is derived from:

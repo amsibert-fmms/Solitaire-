@@ -1,0 +1,7 @@
+# Generated analytics artefacts
+*.parquet
+*.parquet.gz
+
+# Python build artefacts
+__pycache__/
+*.py[cod]
