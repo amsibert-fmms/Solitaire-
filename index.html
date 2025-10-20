@@ -10,89 +10,132 @@
     <header>
       <div class="header-top">
         <h1>Klondike Solitaire</h1>
-        <button id="new-game" type="button">New Game</button>
-      </div>
-      <div class="controls">
-        <div class="appearance-controls" role="group" aria-label="Appearance options">
-          <label class="design-select" for="card-design">
-            <span>Card design</span>
-            <select id="card-design" name="card-design">
-              <option value="classic" selected>Classic</option>
-              <option value="vintage">Vintage</option>
-              <option value="midnight">Midnight</option>
-            </select>
-          </label>
-          <label class="design-select" for="background-design">
-            <span>Background</span>
-            <select id="background-design" name="background-design">
-              <option value="classic" selected>Celestial</option>
-              <option value="forest">Forest Felt</option>
-              <option value="deepsea">Deep Sea</option>
-            </select>
-          </label>
-        </div>
-        <div class="status-line">
-          <span id="status" role="status" aria-live="polite"></span>
-        </div>
+        <p class="tagline">A classic card game built for keyboard and mouse play.</p>
       </div>
     </header>
-    <section class="info-bar" aria-live="polite" role="group" aria-label="Game statistics">
-      <div
-        class="info-item"
-        tabindex="0"
-        data-tooltip="Cards remaining in the stock pile. Draw from here when you run out of moves on the tableau."
-        aria-label="Stock pile cards remaining"
-      >
-        <span class="info-label">Stock</span>
-        <span class="info-value" id="stock-count">0</span>
-      </div>
-      <div
-        class="info-item"
-        tabindex="0"
-        data-tooltip="Face-up cards available to play. Waste grows as you draw from the stock."
-        aria-label="Waste pile cards available"
-      >
-        <span class="info-label">Waste</span>
-        <span class="info-value" id="waste-count">0</span>
-      </div>
-      <div
-        class="info-item"
-        tabindex="0"
-        data-tooltip="Total cards moved into the foundations. Fill all 52 to win."
-        aria-label="Foundation cards placed"
-      >
-        <span class="info-label">Foundations</span>
-        <span class="info-value" id="foundation-count">0/52</span>
-      </div>
-      <div
-        class="info-item"
-        tabindex="0"
-        data-tooltip="Every successful card movement increases your move count."
-        aria-label="Total moves made"
-      >
-        <span class="info-label">Moves</span>
-        <span class="info-value" id="move-count">0</span>
-      </div>
-    </section>
-    <main>
-      <section class="top-row">
-        <div class="pile stock" data-pile="stock" aria-label="Stock"></div>
-        <div class="pile waste" data-pile="waste" aria-label="Waste"></div>
-        <div class="foundations" aria-label="Foundations">
-          <div class="pile foundation" data-pile="foundation-0"></div>
-          <div class="pile foundation" data-pile="foundation-1"></div>
-          <div class="pile foundation" data-pile="foundation-2"></div>
-          <div class="pile foundation" data-pile="foundation-3"></div>
+    <main id="main-content">
+      <section class="controls" aria-labelledby="controls-title">
+        <div class="controls-intro">
+          <h2 id="controls-title">Game controls</h2>
+          <p>Choose a look you like and start a fresh shuffle whenever you are ready.</p>
+        </div>
+        <div class="controls-panel">
+          <div class="controls-actions">
+            <button id="new-game" type="button">New Game</button>
+            <button id="export-attempts" type="button" disabled>
+              Export Attempts
+            </button>
+          </div>
+          <div class="appearance-controls" role="group" aria-label="Appearance options">
+            <label class="design-select" for="card-design">
+              <span>Card design</span>
+              <select id="card-design" name="card-design">
+                <option value="classic" selected>Classic</option>
+                <option value="vintage">Vintage</option>
+                <option value="midnight">Midnight</option>
+              </select>
+            </label>
+            <label class="design-select" for="background-design">
+              <span>Background</span>
+              <select id="background-design" name="background-design">
+                <option value="classic" selected>Celestial</option>
+                <option value="forest">Forest Felt</option>
+                <option value="deepsea">Deep Sea</option>
+              </select>
+            </label>
+          </div>
         </div>
       </section>
-      <section class="tableau" aria-label="Tableau">
-        <div class="pile tableau-pile" data-pile="tableau-0"></div>
-        <div class="pile tableau-pile" data-pile="tableau-1"></div>
-        <div class="pile tableau-pile" data-pile="tableau-2"></div>
-        <div class="pile tableau-pile" data-pile="tableau-3"></div>
-        <div class="pile tableau-pile" data-pile="tableau-4"></div>
-        <div class="pile tableau-pile" data-pile="tableau-5"></div>
-        <div class="pile tableau-pile" data-pile="tableau-6"></div>
+      <section class="status-area" aria-labelledby="status-title">
+        <div class="status-header">
+          <h2 id="status-title">Status messages</h2>
+          <p>Announcements appear here as you draw cards, move stacks, and win games.</p>
+        </div>
+        <div class="status-line">
+          <span id="status" role="status" aria-live="polite">Ready to play.</span>
+        </div>
+        <section class="info-bar" aria-live="polite" role="group" aria-label="Game statistics">
+          <h3 class="visually-hidden">Live game statistics</h3>
+          <div
+            class="info-item"
+            tabindex="0"
+            data-tooltip="Cards remaining in the stock pile. Draw from here when you run out of moves on the tableau."
+            aria-label="Stock pile cards remaining"
+          >
+            <span class="info-label">Stock</span>
+            <span class="info-value" id="stock-count">0</span>
+          </div>
+          <div
+            class="info-item"
+            tabindex="0"
+            data-tooltip="Face-up cards available to play. Waste grows as you draw from the stock."
+            aria-label="Waste pile cards available"
+          >
+            <span class="info-label">Waste</span>
+            <span class="info-value" id="waste-count">0</span>
+          </div>
+          <div
+            class="info-item"
+            tabindex="0"
+            data-tooltip="Total cards moved into the foundations. Fill all 52 to win."
+            aria-label="Foundation cards placed"
+          >
+            <span class="info-label">Foundations</span>
+            <span class="info-value" id="foundation-count">0/52</span>
+          </div>
+          <div
+            class="info-item"
+            tabindex="0"
+            data-tooltip="Every successful card movement increases your move count."
+            aria-label="Total moves made"
+          >
+            <span class="info-label">Moves</span>
+            <span class="info-value" id="move-count">0</span>
+          </div>
+          <div
+            class="info-item"
+            tabindex="0"
+            data-tooltip="Identifier for the current deal. Use this when sharing notable hands."
+            aria-label="Active hand tag"
+          >
+            <span class="info-label">Hand Tag</span>
+            <span class="info-value" id="hand-tag-value">—</span>
+          </div>
+          <div
+            class="info-item"
+            tabindex="0"
+            data-tooltip="Seed value used when shuffling the deck. Reuse it to replay the same layout."
+            aria-label="Shuffle seed value"
+          >
+            <span class="info-label">Seed</span>
+            <span class="info-value" id="seed-value">—</span>
+          </div>
+        </section>
+      </section>
+      <section class="game-area" aria-labelledby="game-area-title" role="application">
+        <div class="game-area-header">
+          <h2 id="game-area-title">Game area</h2>
+          <p>The stock, waste, foundations, and tableau piles appear below. Use the mouse or keyboard controls to play.</p>
+        </div>
+        <section class="top-row" aria-label="Stock, waste, and foundation piles">
+          <div class="pile stock" data-pile="stock" aria-label="Stock"></div>
+          <div class="pile waste" data-pile="waste" aria-label="Waste"></div>
+          <div class="foundations" aria-label="Foundations">
+            <div class="pile foundation" data-pile="foundation-0" aria-label="Foundation pile 1"></div>
+            <div class="pile foundation" data-pile="foundation-1" aria-label="Foundation pile 2"></div>
+            <div class="pile foundation" data-pile="foundation-2" aria-label="Foundation pile 3"></div>
+            <div class="pile foundation" data-pile="foundation-3" aria-label="Foundation pile 4"></div>
+          </div>
+        </section>
+        <section class="tableau" aria-label="Tableau columns">
+          <div class="pile tableau-pile" data-pile="tableau-0" aria-label="Tableau column 1"></div>
+          <div class="pile tableau-pile" data-pile="tableau-1" aria-label="Tableau column 2"></div>
+          <div class="pile tableau-pile" data-pile="tableau-2" aria-label="Tableau column 3"></div>
+          <div class="pile tableau-pile" data-pile="tableau-3" aria-label="Tableau column 4"></div>
+          <div class="pile tableau-pile" data-pile="tableau-4" aria-label="Tableau column 5"></div>
+          <div class="pile tableau-pile" data-pile="tableau-5" aria-label="Tableau column 6"></div>
+          <div class="pile tableau-pile" data-pile="tableau-6" aria-label="Tableau column 7"></div>
+        </section>
       </section>
     </main>
     <footer>
