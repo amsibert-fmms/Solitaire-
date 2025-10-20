@@ -9,3 +9,4 @@
 | ✅ | Provide a CLI to surface win/loss streak analytics for exported attempt logs. |
 | ✅ | Expand the dataset summary CLI with filtering and JSON output options. |
 | ✅ | Build automated solvers to benchmark human win rates against AI play. |
+| ✅ | Expose reversible deck key helpers for 256-bit CRISPR encodings. |

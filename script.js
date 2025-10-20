@@ -62,10 +62,15 @@
     { value: 13, label: "K" }
   ];
 
+  const CARD_TOTAL = SUITS.length * RANKS.length;
+  const DECK_KEY_SIZE = 32;
+
   let gameState = null;
   let selectedStack = null;
   let currentSeed = null;
   let currentHandTag = "—";
+  let currentDeckKeyBytes = null;
+  let currentDeckKeyHex = "";
   const storage = {
     key: "solitaire.attemptLog.v1",
     available: null,
@@ -339,11 +344,32 @@
     return new Date().toISOString();
   }
 
+  function toDeckKeyHex(value) {
+    if (value === null || value === undefined) {
+      return currentDeckKeyHex;
+    }
+    try {
+      const normalised = normaliseDeckKeyInput(value);
+      return bytesToHex(normalised);
+    } catch (error) {
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
+          return trimmed.toLowerCase();
+        }
+      }
+    }
+    return currentDeckKeyHex;
+  }
+
   function normaliseAttempt(attempt = {}) {
     const tag = toSafeString(attempt.tag, "untagged");
     const seed = toSafeString(
       attempt.seed ?? attempt.seedValue ?? attempt.shuffleSeed,
       ""
+    );
+    const deckKeyHex = toDeckKeyHex(
+      attempt.deckKey ?? attempt.deck_key ?? attempt.deckKeyHex
     );
     const result = toSafeString(attempt.result, "unknown").toLowerCase();
     const moves = toNonNegativeInteger(attempt.moves);
@@ -358,6 +384,7 @@
     return {
       tag,
       seed,
+      deck_key: deckKeyHex || "",
       result,
       moves: moves ?? "",
       duration_ms: durationMs ?? "",
@@ -379,6 +406,7 @@
     const headers = [
       "tag",
       "seed",
+      "deck_key",
       "result",
       "moves",
       "duration_ms",
@@ -453,17 +481,14 @@
     return cards;
   }
 
-  function describeCard(card) {
-    return `${card.label}${card.suitSymbol}`;
-  }
-
-  function createDeck(seed) {
+  function buildCanonicalDeck() {
     const deck = [];
     let counter = 0;
     for (const suit of SUITS) {
       for (const rank of RANKS) {
         deck.push({
           id: `${rank.label}-${suit.id}-${counter}`,
+          order: counter,
           rank: rank.value,
           label: rank.label,
           suit: suit.id,
@@ -476,8 +501,137 @@
         counter += 1;
       }
     }
+    return deck;
+  }
+
+  function bytesToHex(bytes) {
+    if (!(bytes instanceof Uint8Array)) {
+      return "";
+    }
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  function hexToBytes(hex) {
+    const clean = hex.length % 2 === 0 ? hex : `0${hex}`;
+    const bytes = new Uint8Array(clean.length / 2);
+    for (let i = 0; i < clean.length; i += 2) {
+      bytes[i / 2] = parseInt(clean.slice(i, i + 2), 16);
+    }
+    return bytes;
+  }
+
+  function encodePermutationToDeckKey(permutation) {
+    if (!Array.isArray(permutation) || permutation.length !== CARD_TOTAL) {
+      throw new Error("Permutation must contain 52 entries.");
+    }
+    const available = Array.from({ length: CARD_TOTAL }, (_, index) => index);
+    let value = 0n;
+    for (const index of permutation) {
+      const position = available.indexOf(index);
+      if (position === -1) {
+        throw new Error("Permutation contains invalid indices.");
+      }
+      value = value * BigInt(available.length) + BigInt(position);
+      available.splice(position, 1);
+    }
+    const bytes = new Uint8Array(DECK_KEY_SIZE);
+    for (let offset = DECK_KEY_SIZE - 1; offset >= 0; offset -= 1) {
+      bytes[offset] = Number(value & 0xffn);
+      value >>= 8n;
+    }
+    if (value !== 0n) {
+      throw new Error("Deck key overflow.");
+    }
+    return bytes;
+  }
+
+  function decodeDeckKeyToPermutation(bytes) {
+    if (!(bytes instanceof Uint8Array) || bytes.length !== DECK_KEY_SIZE) {
+      throw new Error("Deck key must be a 32-byte Uint8Array.");
+    }
+    let value = 0n;
+    for (const byte of bytes) {
+      value = (value << 8n) | BigInt(byte);
+    }
+    const digits = new Array(CARD_TOTAL).fill(0);
+    for (let index = CARD_TOTAL - 1; index >= 0; index -= 1) {
+      const base = BigInt(index + 1);
+      const digit = value % base;
+      value /= base;
+      digits[index] = Number(digit);
+    }
+    if (value !== 0n) {
+      throw new Error("Deck key is out of range.");
+    }
+    const available = Array.from({ length: CARD_TOTAL }, (_, index) => index);
+    return digits.map((digit) => {
+      if (digit >= available.length) {
+        throw new Error("Deck key contains invalid ordering data.");
+      }
+      const choice = available[digit];
+      available.splice(digit, 1);
+      return choice;
+    });
+  }
+
+  function normaliseDeckKeyInput(input) {
+    if (input instanceof Uint8Array) {
+      if (input.length !== DECK_KEY_SIZE) {
+        throw new Error("Deck key must contain exactly 32 bytes.");
+      }
+      return new Uint8Array(input);
+    }
+    if (ArrayBuffer.isView(input) && input.byteLength === DECK_KEY_SIZE) {
+      const view = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+      return new Uint8Array(view);
+    }
+    if (input instanceof ArrayBuffer && input.byteLength === DECK_KEY_SIZE) {
+      return new Uint8Array(input.slice(0));
+    }
+    if (Array.isArray(input) && input.length === DECK_KEY_SIZE) {
+      return new Uint8Array(input);
+    }
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      if (!trimmed) {
+        throw new Error("Deck key string cannot be empty.");
+      }
+      const withoutPrefix = trimmed.startsWith("0x") || trimmed.startsWith("0X")
+        ? trimmed.slice(2)
+        : trimmed;
+      const compact = withoutPrefix.replace(/[-_\s]/g, "");
+      if (compact.length !== DECK_KEY_SIZE * 2 || !/^[0-9a-fA-F]+$/.test(compact)) {
+        throw new Error("Deck key string must contain 64 hexadecimal characters.");
+      }
+      return hexToBytes(compact.toLowerCase());
+    }
+    throw new Error("Unsupported deck key input.");
+  }
+
+  function encodeDeckKeyFromDeck(deck) {
+    const permutation = deck.map((card) => {
+      if (typeof card.order !== "number") {
+        throw new Error("Deck is missing canonical order metadata.");
+      }
+      return card.order;
+    });
+    return encodePermutationToDeckKey(permutation);
+  }
+
+  function createDeckFromDeckKeyBytes(bytes) {
+    const permutation = decodeDeckKeyToPermutation(bytes);
+    const canonical = buildCanonicalDeck();
+    return permutation.map((index) => canonical[index]);
+  }
+
+  function createDeck(seed) {
+    const deck = buildCanonicalDeck();
     const rng = createRng(seed);
     return shuffleDeck(deck, rng);
+  }
+
+  function describeCard(card) {
+    return `${card.label}${card.suitSymbol}`;
   }
 
   function clearExistingCards() {
@@ -935,7 +1089,8 @@
     const foundations = state.foundations
       .map((pile) => pile.map(encodeCard).join("."))
       .join("|");
-    return `seed=${state.seed}|tableau=${tableau}|stock=${stock}|waste=${waste}|foundations=${foundations}`;
+    const seedValue = state.seed ?? "—";
+    return `seed=${seedValue}|tableau=${tableau}|stock=${stock}|waste=${waste}|foundations=${foundations}`;
   }
 
   function fallbackHash(serialised) {
@@ -982,10 +1137,33 @@
     return Math.floor(Math.random() * 0xffffffff);
   }
 
-  function dealNewGame(seed) {
+  function cloneDeckForPlay(deck) {
+    return deck.map((card) => ({
+      ...card,
+      faceUp: false,
+      location: null,
+      element: null
+    }));
+  }
+
+  function dealDeckIntoGameState(deck, seedValue, deckKeyBytes) {
+    if (!Array.isArray(deck) || deck.length !== CARD_TOTAL) {
+      throw new Error("Deck must contain exactly 52 cards.");
+    }
+
+    const canonicalSeed =
+      typeof seedValue === "number" && Number.isFinite(seedValue)
+        ? seedValue >>> 0
+        : null;
+
+    const deckKeyCopy =
+      deckKeyBytes instanceof Uint8Array
+        ? new Uint8Array(deckKeyBytes)
+        : null;
+
     clearExistingCards();
     gameState = {
-      seed,
+      seed: canonicalSeed,
       stock: [],
       waste: [],
       tableau: Array.from({ length: TABLEAU_PILES }, () => []),
@@ -993,14 +1171,16 @@
       moves: 0,
       passes: 0,
       drawCount: DRAW_COUNT,
-      initialSignature: ""
+      initialSignature: "",
+      deckKey: deckKeyCopy,
+      deckKeyHex: deckKeyCopy ? bytesToHex(deckKeyCopy) : null
     };
 
-    const deck = createDeck(seed);
+    const workingDeck = cloneDeckForPlay(deck);
 
     for (let column = 0; column < TABLEAU_PILES; column += 1) {
       for (let row = 0; row <= column; row += 1) {
-        const card = deck.shift();
+        const card = workingDeck.shift();
         if (!card) continue;
         card.faceUp = row === column;
         setCardLocation(card, "tableau", column);
@@ -1008,8 +1188,8 @@
       }
     }
 
-    while (deck.length) {
-      const card = deck.shift();
+    while (workingDeck.length) {
+      const card = workingDeck.shift();
       if (!card) continue;
       card.faceUp = false;
       setCardLocation(card, "stock", 0);
@@ -1023,12 +1203,70 @@
 
   async function startNewGame(seedOverride) {
     clearSelection();
-    currentSeed =
-      typeof seedOverride === "number" && Number.isFinite(seedOverride)
-        ? seedOverride >>> 0
-        : generateSeed();
-    updateRunMetadata({ handTag: "—", seed: String(currentSeed) });
-    dealNewGame(currentSeed);
+
+    const options =
+      typeof seedOverride === "object" && seedOverride !== null && !Array.isArray(seedOverride)
+        ? seedOverride
+        : null;
+
+    let seedCandidate = null;
+    if (typeof seedOverride === "number" && Number.isFinite(seedOverride)) {
+      seedCandidate = seedOverride >>> 0;
+    }
+    if (options) {
+      const rawSeed =
+        options.seed ?? options.seedValue ?? options.shuffleSeed ?? null;
+      if (typeof rawSeed === "number" && Number.isFinite(rawSeed)) {
+        seedCandidate = rawSeed >>> 0;
+      } else if (typeof rawSeed === "string") {
+        const trimmed = rawSeed.trim();
+        if (/^-?\d+$/.test(trimmed)) {
+          const parsed = Number.parseInt(trimmed, 10);
+          if (Number.isFinite(parsed)) {
+            seedCandidate = parsed >>> 0;
+          }
+        }
+      }
+    }
+
+    let deckKeyBytes = null;
+    let deck = null;
+
+    if (options) {
+      const deckKeyInput =
+        options.deckKey ??
+        options.deck_key ??
+        options.deckKeyHex ??
+        options.deckKeyBytes ??
+        options.deck_key_hex ??
+        options.deck_key_bytes;
+      if (deckKeyInput !== undefined && deckKeyInput !== null) {
+        deckKeyBytes = normaliseDeckKeyInput(deckKeyInput);
+        deck = createDeckFromDeckKeyBytes(deckKeyBytes);
+      }
+    }
+
+    if (!deck) {
+      if (seedCandidate === null) {
+        seedCandidate = generateSeed();
+      }
+      deck = createDeck(seedCandidate);
+    }
+
+    if (!deckKeyBytes) {
+      deckKeyBytes = encodeDeckKeyFromDeck(deck);
+    }
+
+    currentSeed = seedCandidate;
+    currentDeckKeyBytes = new Uint8Array(deckKeyBytes);
+    currentDeckKeyHex = bytesToHex(currentDeckKeyBytes);
+
+    updateRunMetadata({
+      handTag: "—",
+      seed: seedCandidate !== null ? String(seedCandidate) : "—"
+    });
+
+    dealDeckIntoGameState(deck, seedCandidate, currentDeckKeyBytes);
     await updateHandTagForCurrentDeal();
     setStatusMessage("New game ready. Good luck!");
   }
@@ -1163,6 +1401,7 @@
       return {
         seed: currentSeed,
         handTag: currentHandTag,
+        deckKey: currentDeckKeyHex,
         stock: gameState.stock.length,
         waste: gameState.waste.length,
         foundations: gameState.foundations.map((pile) => pile.length),
@@ -1175,6 +1414,15 @@
     },
     setSeed(seed) {
       updateRunMetadata({ seed });
+    },
+    getDeckKeyHex() {
+      return currentDeckKeyHex;
+    },
+    getDeckKeyBytes() {
+      return currentDeckKeyBytes ? new Uint8Array(currentDeckKeyBytes) : null;
+    },
+    startNewGameFromDeckKey(deckKeyInput) {
+      return startNewGame({ deckKey: deckKeyInput });
     }
   };
 
@@ -1187,5 +1435,13 @@
       return String(currentSeed);
     }
     return uiState.metadata.seed;
+  };
+
+  window.solitaireDeckKey = function solitaireDeckKey() {
+    return currentDeckKeyHex;
+  };
+
+  window.solitaireDeckKeyBytes = function solitaireDeckKeyBytes() {
+    return currentDeckKeyBytes ? new Uint8Array(currentDeckKeyBytes) : null;
   };
 })();

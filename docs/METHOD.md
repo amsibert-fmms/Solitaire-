@@ -14,6 +14,8 @@ This document outlines how solitaire hands are identified, logged, and analyzed 
 
 The combination `(seed, hash)` is stable across browsers, making it a reliable identifier when sharing or aggregating results.
 
+In addition to the hand tag, the client derives a reversible 256-bit `deck_key` that directly encodes the shuffled deck order. This CRISPR-style key enables binary database columns (for example, `VARBINARY(32)`) to store and later rebuild the exact layout even when the seed is unavailable.
+
 ## 2. Event emission
 
 The web client emits lifecycle events that you can intercept to log progress:

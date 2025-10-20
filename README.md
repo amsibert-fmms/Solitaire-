@@ -38,6 +38,7 @@ Integrate the following pattern to persist hand statistics:
 const tag = window.solitaireHandTag();
 const outcome = {
   tag,
+  deck_key: window.solitaireDeckKey(),
   result: "win", // or "loss" / "abandoned"
   timestamp: new Date().toISOString(),
 };
@@ -68,6 +69,7 @@ Use the helpers below to integrate with solvers or analytics pipelines:
 window.solitaireUI.logAttempt({
   tag: window.solitaireHandTag(),
   seed: window.solitaireSeed(),
+  deck_key: window.solitaireDeckKey(),
   result: "win",
   moves: 115,
   durationMs: 92000,
@@ -84,13 +86,27 @@ window.solitaireUI.exportAttempts();
 | Helper | Purpose |
 | --- | --- |
 | `window.solitaireUI.startNewGame(seed?)` | Deals a new game. Pass a numeric seed to replay a specific layout or omit it for a fresh randomised seed. |
+| `window.solitaireUI.startNewGameFromDeckKey(deckKey)` | Rebuilds a layout from a 32-byte deck key (accepts hex strings, typed arrays, or ArrayBuffers). |
 | `window.solitaireUI.getStateSnapshot()` | Returns the current seed, hand tag, stock/waste counts, foundation totals, and move count for analytics dashboards. |
+| `window.solitaireUI.getDeckKeyHex()` | Returns the active deal’s 64-character hexadecimal deck key. |
+| `window.solitaireDeckKey()` | Convenience helper that mirrors `getDeckKeyHex()` for quick scripting. |
+| `window.solitaireDeckKeyBytes()` | Returns a defensive copy of the 32-byte deck key as a `Uint8Array`. |
+
+### Deck keys
+
+Every dealt layout is now assigned a 32-byte **deck key** that captures the exact permutation of the starting deck. The UI exposes the key as a 64-character hexadecimal string (via `window.solitaireDeckKey()` or `window.solitaireUI.getDeckKeyHex()`).
+
+- Supply the key to `window.solitaireUI.startNewGameFromDeckKey(deckKey)` to rebuild the same layout without referencing a numeric seed.
+- Accepted inputs include hexadecimal strings (with or without a `0x` prefix), `Uint8Array` instances, `ArrayBuffer` objects, or arrays of 32 byte values.
+- Logged attempts automatically persist the `deck_key` column so downstream analytics or databases can store the 256-bit value in `BINARY(32)`/`VARBINARY(32)` fields.
+
+The encoding is reversible, so retaining the deck key is sufficient to reconstruct the exact shuffle across systems.
 
 ## Attempt persistence
 
 | Behaviour | Details |
 | --- | --- |
-| Local caching | Attempts added through `window.solitaireUI.logAttempt` are automatically persisted to `localStorage` under the key `solitaire.attemptLog.v1`. They are restored on page load so you can export even after a refresh. |
+| Local caching | Attempts added through `window.solitaireUI.logAttempt` are automatically persisted to `localStorage` under the key `solitaire.attemptLog.v1`. They are restored on page load so you can export even after a refresh. Each entry now includes the 64-character hexadecimal `deck_key` column. |
 | Clearing entries | Call `window.solitaireUI.clearAttemptLog()` to remove attempts from both the in-memory list and local storage. |
 | Fallback behaviour | If the browser disallows storage (for example, in privacy modes), the helpers still work in-memory; only persistence is skipped. |
 
@@ -149,6 +165,8 @@ The canonical hand tag is derived from:
 1. A fixed shuffle algorithm seeded by a 32-bit integer.
 2. Normalized encodings of tableau columns, stock, waste, and foundation state.
 3. A SHA-256 digest of the serialized game state.
+
+Each shuffle also maps to a reversible 256-bit `deck_key`, allowing databases to store a compact binary token (`BINARY(32)`/`VARBINARY(32)`) that recreates the deck without relying on the original seed.
 
 Persisted outcomes can be stored in one of the following formats:
 
