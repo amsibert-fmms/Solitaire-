@@ -82,6 +82,15 @@ def _normalise_pass_limit(value: Any) -> int | None:
         if value < 0:
             raise ValueError("Pass limit must be non-negative")
         return value
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            raise ValueError("Pass limit must be a finite number")
+        if value < 0:
+            raise ValueError("Pass limit must be non-negative")
+        if not value.is_integer():
+            raise ValueError("Pass limit must be a whole number")
+        return int(value)
+
     if isinstance(value, str):
         token = value.strip().lower()
         if not token:

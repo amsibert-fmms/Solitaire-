@@ -1,4 +1,5 @@
 import json
+import math
 import pathlib
 import sys
 
@@ -142,9 +143,24 @@ def test_blank_pass_limit_treated_as_unlimited():
     assert profile.is_move_legal({"passes_made": 100}, {"type": "stock_pass"})
 
 
+def test_float_pass_limit_is_respected():
+    profile = _make_profile(4.0)
+    assert profile.pass_limit == 4
+    assert profile.is_move_legal({"passes_made": 3}, {"type": "stock_pass"})
+    assert not profile.is_move_legal({"passes_made": 4}, {"type": "stock_pass"})
+
+
 @pytest.mark.parametrize(
     "value,expected_exception",
-    [(-1, ValueError), ("-1", ValueError), ("bogus", ValueError), (True, TypeError), (3.5, TypeError)],
+    [
+        (-1, ValueError),
+        ("-1", ValueError),
+        ("bogus", ValueError),
+        (True, TypeError),
+        (3.5, ValueError),
+        (math.nan, ValueError),
+        (math.inf, ValueError),
+    ],
 )
 def test_invalid_pass_limits_raise(value, expected_exception):
     profile = _make_profile(value)
